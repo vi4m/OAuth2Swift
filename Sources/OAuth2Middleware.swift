@@ -3,7 +3,6 @@ import File
 import HTTPSClient
 import JSON
 
-
 private var accessToken: String?
 
 private func writeTokenToFile(token: String, filename: String) throws {
