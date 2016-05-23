@@ -1,6 +1,6 @@
 # OAuth2Swift
 
-OAuth2 middleware for Zewo Swift framework. Works well also on Linux systems.
+OAuth2 middleware for Zewo Swift framework. Works well on OSX, Linux and other systems supported by Zewo.
 
 Currently it plays nicely with the Google OAuth2 systems only.
 
