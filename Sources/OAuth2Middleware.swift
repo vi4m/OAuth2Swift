@@ -71,13 +71,13 @@ public struct OAuth2Middleware: Middleware {
         if accessToken == nil {
             self.fetchTokenToCache()
         }
-        request.headers["Authorization"] = ["Bearer \(accessToken!)"]
+        request.headers["Authorization"] = "Bearer \(accessToken!)"
         result = try chain.respond(to: request)
         
         if result.statusCode == 401  {
             /* Renew */
             self.fetchTokenToCache()
-            request.headers["Authorization"] = ["Bearer \(accessToken!)"]
+            request.headers["Authorization"] = "Bearer \(accessToken!)"
             result = try chain.respond(to: request)
         }
         print(request)
