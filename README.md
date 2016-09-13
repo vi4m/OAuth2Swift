@@ -5,7 +5,7 @@ OAuth2 middleware for Zewo Swift framework. Works well on OSX, Linux and other s
 Currently it plays nicely with the Google OAuth2 systems only.
 
 - [x] Token caching in file
-- [ ] More providers
+- [x] More providers
 - [ ] Tests
 
 See: [Zewo project](https://github.com/Zewo?utf8=✓&query=middleware) for more details.
