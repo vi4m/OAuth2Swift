@@ -16,7 +16,7 @@ Just add ```.Package(url: "https://github.com/vi4m/OAuth2Swift.git", majorVersio
     
 # Usage
 
-In this package, we user only server side OAuth2 with 2 options:
+In this package, we use only server side non-interactive authentication, with 2 options:
 - authorize using refresh tokens (RefreshTokenGrantType) 
 - authorize using client credentials (ClientCredentialsGrantType)
 
