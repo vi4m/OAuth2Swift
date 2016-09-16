@@ -1,7 +1,7 @@
 import HTTP
 import File
-import HTTPSClient
-import JSON
+import HTTPClient
+import Core
 import Base64
 
 
@@ -14,8 +14,8 @@ private func writeTokenToFile(token: String, filename: String) throws {
     var file: File
     do {
         file = try File(path: filename, mode: .truncateReadWrite)
-        try file.write(token, flushing: true)
-        try file.close()
+        try file.write(token)
+        file.close()
     }
     catch {
         throw error
@@ -32,8 +32,9 @@ private func readTokenFromFile(filename: String) -> String? {
         return nil
     }
     
-    let contents = try! file.readAllBytes()
-    let rez = String(contents).trim()
+    let contents = try! file.readAll()
+    // fixme: describing?
+    let rez = String(describing: contents).trim()
     
     guard !rez.isEmpty else {
         return nil
@@ -41,7 +42,7 @@ private func readTokenFromFile(filename: String) -> String? {
     return rez
 }
 
-enum OAuth2MiddlewareError: ErrorProtocol {
+enum OAuth2MiddlewareError: Error {
     case TokenError
 }
 
@@ -59,15 +60,16 @@ public struct RefreshTokenGrantType: GrantType {
     
     public func obtainToken() throws -> Token {
         do {
-            let client = try! Client(uri: "\(baseURL)")
-            let refreshTokenEncoded = try! refreshToken.percentEncoded(allowing: .uriPasswordAllowed)
-            let body = Data("client_id=\(self.clientId)&client_secret=\(self.clientSecret)&refresh_token=\(refreshTokenEncoded)&grant_type=refresh_token")
+            let client = try! Client(url: "\(baseURL)")
+            let refreshTokenEncoded =  refreshToken.percentEncoded(allowing: .uriPasswordAllowed)
+            let body = "client_id=\(self.clientId)&client_secret=\(self.clientSecret)&refresh_token=\(refreshTokenEncoded)&grant_type=refresh_token"
             let headers: Headers = [
                 "Content-Type": "application/x-www-form-urlencoded"
             ]
-            var response = try client.post(refreshTokenURL, headers: headers, body: body)
+            var response = try client.request(Request(method: .post, url: refreshTokenURL, headers: headers, body: body.data)!)
+            
             let buffer = try response.body.becomeBuffer()
-            let parsed = try! JSONParser().parse(data: buffer)
+            let parsed = try! JSONMapParser().parse(buffer)
             if response.statusCode != 200 {
                 print(parsed)
                 throw OAuth2MiddlewareError.TokenError
@@ -93,22 +95,23 @@ public struct ClientCredentialsGrantType: GrantType {
     }
     
     public func obtainToken() throws -> Token {
-        let client = try! Client(uri: "\(baseURL)")
-        let body = Data("client_id=\(self.clientId)&client_secret=\(self.clientSecret)&grant_type=client_credentials")
+        let client = try! Client(url: "\(baseURL)")
+        let body = "client_id=\(self.clientId)&client_secret=\(self.clientSecret)&grant_type=client_credentials"
         var headers: Headers = [
             "Content-Type": "application/x-www-form-urlencoded"
         ]
         if let creds = basicAuthCredentials {
+            
             let credentials = Base64.encode("\(creds.0):\(creds.1)")
-            headers["Authorization"] = ["Basic \(credentials)"]
+            headers["Authorization"] = "Basic \(credentials)"
         }
         
         do {
-            var response = try client.post(authorizeTokenURL,
-                                           headers: headers,
-                                           body: body)
+            var response = try client.request(Request(method: .post, url: authorizeTokenURL,
+                headers: headers,
+                body: body.data)!)
             let buffer = try response.body.becomeBuffer()
-            let parsed = try! JSONParser().parse(data: buffer)
+            let parsed = try! JSONMapParser().parse(buffer)
             if response.statusCode != 200 {
                 print(parsed)
                 throw OAuth2MiddlewareError.TokenError
@@ -153,13 +156,13 @@ public struct OAuth2Middleware: Middleware {
         if accessToken == nil {
             self.fetchTokenToCache()
         }
-        request.headers["Authorization"] = ["Bearer \(accessToken!)"]
+        request.headers["Authorization"] = "Bearer \(accessToken!)"
         result = try chain.respond(to: request)
         
         if result.statusCode == 401  {
             /* Renew */
             self.fetchTokenToCache()
-            request.headers["Authorization"] = ["Bearer", "\(accessToken!)"]
+            request.headers["Authorization"] = "Bearer \(accessToken!)"
             result = try chain.respond(to: request)
         }
         print(request)
