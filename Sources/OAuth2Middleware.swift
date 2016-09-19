@@ -1,3 +1,4 @@
+import Foundation
 import HTTP
 import File
 import HTTPClient
