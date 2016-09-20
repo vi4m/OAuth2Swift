@@ -35,7 +35,7 @@ private func readTokenFromFile(filename: String) -> String? {
     
     let contents = try! file.readAll()
     // fixme: describing?
-    let rez = String(describing: contents).trim()
+    let rez = try! String(data: contents)
     
     guard !rez.isEmpty else {
         return nil
@@ -157,6 +157,8 @@ public struct OAuth2Middleware: Middleware {
         if accessToken == nil {
             self.fetchTokenToCache()
         }
+        print(accessToken!)
+        
         request.headers["Authorization"] = "Bearer \(accessToken!)"
         result = try chain.respond(to: request)
         
