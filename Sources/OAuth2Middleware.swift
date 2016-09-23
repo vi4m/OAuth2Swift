@@ -6,6 +6,9 @@ import Core
 import Base64
 
 
+var logger = Logger(name: "Configuration Service", appenders: [StandardOutputAppender(levels: .info)])
+
+
 typealias GetNewTokenFunc = () -> String
 typealias GetNewCredentialsFunc = () -> String
 
@@ -140,7 +143,7 @@ public struct OAuth2Middleware: Middleware {
     }
     
     func fetchTokenToCache() {
-        print("Fetching token to cache...")
+        logger.debug("Fetching token to cache...")
         guard let newToken = try? self.grantType.obtainToken() else {
             print("Failed to obtain new token")
             exit(1)
@@ -157,7 +160,7 @@ public struct OAuth2Middleware: Middleware {
         if accessToken == nil {
             self.fetchTokenToCache()
         }
-        print(accessToken!)
+        logger.debug(accessToken!)
         
         request.headers["Authorization"] = "Bearer \(accessToken!)"
         result = try chain.respond(to: request)
@@ -168,7 +171,7 @@ public struct OAuth2Middleware: Middleware {
             request.headers["Authorization"] = "Bearer \(accessToken!)"
             result = try chain.respond(to: request)
         }
-        print(request)
+        logger.debug(request)
         return result
     }
     
