@@ -2,11 +2,25 @@ import Foundation
 import HTTP
 import File
 import HTTPClient
-import Core
-import Base64
-
+import Axis
 
 var logger = Logger(name: "Configuration Service", appenders: [StandardOutputAppender(levels: .info)])
+
+
+extension String {
+
+    func fromBase64() -> String? {
+        guard let data = Data(base64Encoded: self) else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
+    }
+
+    func toBase64() -> String {
+        return Data(self.utf8).base64EncodedString()
+    }
+}
 
 
 typealias GetNewTokenFunc = () -> String
@@ -18,7 +32,7 @@ private func writeTokenToFile(token: String, filename: String) throws {
     var file: File
     do {
         file = try File(path: filename, mode: .truncateReadWrite)
-        try file.write(token)
+        try file.write(token, deadline: .never)
         file.close()
     }
     catch {
@@ -26,25 +40,6 @@ private func writeTokenToFile(token: String, filename: String) throws {
     }
 }
 
-private func readTokenFromFile(filename: String) -> String? {
-    var file: File
-    
-    do {
-        file = try File(path: filename, mode: .read)
-    }
-    catch {
-        return nil
-    }
-    
-    let contents = try! file.readAll()
-    // fixme: describing?
-    let rez = try! String(data: contents)
-    
-    guard !rez.isEmpty else {
-        return nil
-    }
-    return rez
-}
 
 enum OAuth2MiddlewareError: Error {
     case TokenError
@@ -70,15 +65,15 @@ public struct RefreshTokenGrantType: GrantType {
             let headers: Headers = [
                 "Content-Type": "application/x-www-form-urlencoded"
             ]
-            var response = try client.request(Request(method: .post, url: refreshTokenURL, headers: headers, body: body.data)!)
+            var response = try client.request(Request(method: .post, url: refreshTokenURL, headers: headers, body: body)!)
             
-            let buffer = try response.body.becomeBuffer()
+            let buffer = try response.body.becomeBuffer(deadline: .never)
             let parsed = try! JSONMapParser().parse(buffer)
             if response.statusCode != 200 {
                 print(parsed)
                 throw OAuth2MiddlewareError.TokenError
             }
-            return Token(value: try parsed.asDictionary()["access_token"]!.asString())
+            return Token(value: try parsed!.asDictionary()["access_token"]!.asString())
         } catch {
             print("Response error")
             throw OAuth2MiddlewareError.TokenError
@@ -106,21 +101,21 @@ public struct ClientCredentialsGrantType: GrantType {
         ]
         if let creds = basicAuthCredentials {
             
-            let credentials = Base64.encode("\(creds.0):\(creds.1)")
+            let credentials = "\(creds.0):\(creds.1)".toBase64()
             headers["Authorization"] = "Basic \(credentials)"
         }
         
         do {
             var response = try client.request(Request(method: .post, url: authorizeTokenURL,
                 headers: headers,
-                body: body.data)!)
-            let buffer = try response.body.becomeBuffer()
+                body: body)!)
+            let buffer = try response.body.becomeBuffer(deadline: .never)
             let parsed = try! JSONMapParser().parse(buffer)
             if response.statusCode != 200 {
                 print(parsed)
                 throw OAuth2MiddlewareError.TokenError
             }
-            return Token(value: try! parsed.asDictionary()["access_token"]!.asString())
+            return Token(value: try! parsed!.asDictionary()["access_token"]!.asString())
         } catch {
             print("Response error")
             throw OAuth2MiddlewareError.TokenError
@@ -137,7 +132,7 @@ public struct OAuth2Middleware: Middleware {
         self.grantType = grantType
         self.tokenFileName = tokenFileName
         
-        if let token = readTokenFromFile(filename: tokenFileName) {
+        if let token = try? String(contentsOfFile: tokenFileName, encoding: .utf8) {
             accessToken = token
         }
     }
