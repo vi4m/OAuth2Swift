@@ -28,18 +28,6 @@ typealias GetNewCredentialsFunc = () -> String
 
 private var accessToken: String?
 
-private func writeTokenToFile(token: String, filename: String) throws {
-    var file: File
-    do {
-        file = try File(path: filename, mode: .truncateReadWrite)
-        try file.write(token, deadline: .never)
-        file.close()
-    }
-    catch {
-        throw error
-    }
-}
-
 
 enum OAuth2MiddlewareError: Error {
     case TokenError
@@ -137,14 +125,15 @@ public struct OAuth2Middleware: Middleware {
         }
     }
     
-    func fetchTokenToCache() {
-        logger.debug("Fetching token to cache...")
+    func fetchTokenToCache() throws {
+        logger.info("Fetching token to cache...")
         guard let newToken = try? self.grantType.obtainToken() else {
             print("Failed to obtain new token")
             exit(1)
         }
         accessToken = newToken.value
-        try! writeTokenToFile(token: accessToken!, filename: tokenFileName)
+        
+        try accessToken!.write(toFile: tokenFileName, atomically: true, encoding: .utf8)
     }
     
     public func respond(to request: Request, chainingTo chain: Responder) throws -> Response {
@@ -153,7 +142,7 @@ public struct OAuth2Middleware: Middleware {
         
         /* If not have access token - authorize */
         if accessToken == nil {
-            self.fetchTokenToCache()
+            try self.fetchTokenToCache()
         }
         logger.debug(accessToken!)
         
@@ -162,7 +151,7 @@ public struct OAuth2Middleware: Middleware {
         
         if result.statusCode == 401  {
             /* Renew */
-            self.fetchTokenToCache()
+            try self.fetchTokenToCache()
             request.headers["Authorization"] = "Bearer \(accessToken!)"
             result = try chain.respond(to: request)
         }
