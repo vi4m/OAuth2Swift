@@ -6,7 +6,6 @@ import Axis
 
 var logger = Logger(name: "Configuration Service", appenders: [StandardOutputAppender(levels: .info)])
 
-
 extension String {
 
     func fromBase64() -> String? {
@@ -21,10 +20,6 @@ extension String {
         return Data(self.utf8).base64EncodedString()
     }
 }
-
-
-typealias GetNewTokenFunc = () -> String
-typealias GetNewCredentialsFunc = () -> String
 
 private var accessToken: String?
 
@@ -48,7 +43,8 @@ public struct RefreshTokenGrantType: GrantType {
     public func obtainToken() throws -> Token {
         do {
             let client = try! Client(url: "\(baseURL)")
-            let refreshTokenEncoded =  refreshToken.percentEncoded(allowing: .uriPasswordAllowed)
+            let refreshTokenEncoded =  refreshToken.percentEncoded(
+                allowing: UnicodeScalars.uriPasswordAllowed.utf8)
             let body = "client_id=\(self.clientId)&client_secret=\(self.clientSecret)&refresh_token=\(refreshTokenEncoded)&grant_type=refresh_token"
             let headers: Headers = [
                 "Content-Type": "application/x-www-form-urlencoded"
