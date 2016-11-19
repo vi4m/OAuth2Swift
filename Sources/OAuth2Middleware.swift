@@ -11,9 +11,8 @@ private func writeTokenToFile(token: String, filename: String) throws {
     var file: File
     do {
         file = try File(path: filename, mode: .truncateReadWrite)
-        try file.write(token)
+        try file.write(token, deadline: .never)
         file.close()
-        return String(data: data, encoding: .utf8)
      }
     catch {
         throw error
@@ -30,17 +29,16 @@ private func readTokenFromFile(filename: String) -> String? {
         return nil
     }
     
-    let contents = try! file.readAll()
+    let contents = try! file.readAll(deadline: .never)
     // fixme: describing?
-    let rez = try! String(data: contents)
+    let rez = try! String(buffer: contents)
     
     guard !rez.isEmpty else {
         return nil
+    }
 
     return rez
  }
-
-
 
 extension String {
 
@@ -56,10 +54,6 @@ extension String {
         return Data(self.utf8).base64EncodedString()
     }
 }
-
-
-typealias GetNewTokenFunc = () -> String
-typealias GetNewCredentialsFunc = () -> String
 
 private var accessToken: String?
 
@@ -83,7 +77,8 @@ public struct RefreshTokenGrantType: GrantType {
     public func obtainToken() throws -> Token {
         do {
             let client = try! Client(url: "\(baseURL)")
-            let refreshTokenEncoded =  refreshToken.percentEncoded(allowing: .uriPasswordAllowed)
+            let refreshTokenEncoded =  refreshToken.percentEncoded(
+                allowing: UnicodeScalars.uriPasswordAllowed.utf8)
             let body = "client_id=\(self.clientId)&client_secret=\(self.clientSecret)&refresh_token=\(refreshTokenEncoded)&grant_type=refresh_token"
             let headers: Headers = [
                 "Content-Type": "application/x-www-form-urlencoded"
@@ -155,7 +150,7 @@ public struct OAuth2Middleware: Middleware {
         self.grantType = grantType
         self.tokenFileName = tokenFileName
         
-        if let token = try? String(contentsOfFile: tokenFileName, encoding: .utf8) {
+        if let token = readTokenFromFile(filename: tokenFileName) {
             accessToken = token
         }
     }
@@ -168,7 +163,7 @@ public struct OAuth2Middleware: Middleware {
         }
         accessToken = newToken.value
         
-        try accessToken!.write(toFile: tokenFileName, atomically: true, encoding: .utf8)
+        try? writeTokenToFile(token: accessToken!, filename: tokenFileName)
     }
     
     public func respond(to request: Request, chainingTo chain: Responder) throws -> Response {
