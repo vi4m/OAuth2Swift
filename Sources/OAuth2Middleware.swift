@@ -7,6 +7,41 @@ import Axis
 var logger = Logger(name: "Configuration Service", appenders: [StandardOutputAppender(levels: .info)])
 
 
+private func writeTokenToFile(token: String, filename: String) throws {
+    var file: File
+    do {
+        file = try File(path: filename, mode: .truncateReadWrite)
+        try file.write(token)
+        file.close()
+        return String(data: data, encoding: .utf8)
+     }
+    catch {
+        throw error
+    }
+}
+ 
+private func readTokenFromFile(filename: String) -> String? {
+    var file: File
+    
+    do {
+        file = try File(path: filename, mode: .read)
+    }
+    catch {
+        return nil
+    }
+    
+    let contents = try! file.readAll()
+    // fixme: describing?
+    let rez = try! String(data: contents)
+    
+    guard !rez.isEmpty else {
+        return nil
+
+    return rez
+ }
+
+
+
 extension String {
 
     func fromBase64() -> String? {
